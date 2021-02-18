@@ -211,17 +211,9 @@ func main() {
 	hkDuration := terminal.HotKeyDuration{D: time.Second * 3}
 
 	twidgets = make([]*terminal.Widget, 0)
-	//foo := os.Env()
 	os.Open("foo")
 	tcommands := []string{
-		//os.Getenv("SHELL"),
-		"vim " + kataVim,
-		//os.Getenv("SHELL"),
-		//os.Getenv("SHELL"),
-
-		//"less cell.go",
-		//"vttest",
-		//"emacs -nw -q ./cell.go",
+		"vim" + " -R " + kataVim,
 	}
 
 	for _, cmd := range tcommands {
@@ -257,9 +249,6 @@ func main() {
 	tw := text.New(" VimKatas ")
 	twi := styled.New(tw, gowid.MakePaletteRef("invred"))
 	twp := holder.New(tw)
-
-	//vline := styled.New(fill.New('│'), gowid.MakePaletteRef("line"))
-	//hline := styled.New(fill.New('-'), gowid.MakePaletteRef("line"))
 
 	tout := framed.New(ExpectedOutput, framed.Options{
 		Frame: framed.UnicodeFrame,
