@@ -9,7 +9,6 @@ import (
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/examples"
 	"github.com/gcla/gowid/widgets/columns"
-	"github.com/gcla/gowid/widgets/fill"
 	"github.com/gcla/gowid/widgets/framed"
 	"github.com/gcla/gowid/widgets/holder"
 	"github.com/gcla/gowid/widgets/pile"
@@ -38,11 +37,11 @@ func (w *ResizeableColumnsWidget) WidgetWidths(size gowid.IRenderSize, focus gow
 	addme := w.offset
 	if widths[0]+addme < 0 {
 		addme = -widths[0]
-	} else if widths[2]-addme < 0 {
-		addme = widths[2]
+	} else if widths[1]-addme < 0 {
+		addme = widths[1]
 	}
 	widths[0] += addme
-	widths[2] -= addme
+	widths[1] -= addme
 	return widths
 }
 
@@ -256,19 +255,32 @@ func main() {
 	twi := styled.New(tw, gowid.MakePaletteRef("invred"))
 	twp := holder.New(tw)
 
-	vline := styled.New(fill.New('│'), gowid.MakePaletteRef("line"))
-	hline := styled.New(fill.New('-'), gowid.MakePaletteRef("line"))
+	//vline := styled.New(fill.New('│'), gowid.MakePaletteRef("line"))
+	//hline := styled.New(fill.New('-'), gowid.MakePaletteRef("line"))
+
+	tout := framed.New(ExpectedOutput, framed.Options{
+		Frame: framed.UnicodeFrame,
+		Title: "Expected Output",
+	})
+
+	ttips := framed.New(tips, framed.Options{
+		Frame: framed.UnicodeFrame,
+		Title: "Tips",
+	})
+
+	twid := framed.New(twidgets[0], framed.Options{
+		Frame: framed.UnicodeFrame,
+		Title: "Exercise",
+	})
 
 	pilew = NewResizeablePile([]gowid.IContainerWidget{
-		&gowid.ContainerWidget{IWidget: twidgets[0], D: gowid.RenderWithWeight{W: 3}},
-		&gowid.ContainerWidget{IWidget: hline, D: gowid.RenderWithUnits{U: 1}},
-		&gowid.ContainerWidget{IWidget: ExpectedOutput, D: gowid.RenderWithWeight{W: 3}},
+		&gowid.ContainerWidget{IWidget: twid, D: gowid.RenderWithWeight{W: 3}},
+		&gowid.ContainerWidget{IWidget: tout, D: gowid.RenderWithWeight{W: 3}},
 	})
 
 	cols = NewResizeableColumns([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{IWidget: pilew, D: gowid.RenderWithWeight{W: 3}},
-		&gowid.ContainerWidget{IWidget: vline, D: gowid.RenderWithUnits{U: 1}},
-		&gowid.ContainerWidget{IWidget: tips, D: gowid.RenderWithWeight{W: 1}},
+		&gowid.ContainerWidget{IWidget: ttips, D: gowid.RenderWithWeight{W: 1}},
 
 	})
 
