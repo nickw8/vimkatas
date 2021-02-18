@@ -5,7 +5,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
-
+	"vimkatas/handlers"
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/examples"
 	"github.com/gcla/gowid/widgets/columns"
@@ -194,6 +194,11 @@ func (h handler) UnhandledInput(app gowid.IApp, ev interface{}) bool {
 
 func main() {
 	var err error
+	getKata, err := handlers.SelectKata()
+	kataTips := string(getKata.Tips)
+	kataNum := getKata.Kata
+	kataExample := string(getKata.Example)
+	kataVim := getKata.VimText
 
 	f := examples.RedirectLogger("terminal.log")
 	defer f.Close()
@@ -210,7 +215,7 @@ func main() {
 	os.Open("foo")
 	tcommands := []string{
 		//os.Getenv("SHELL"),
-		"vim",
+		"vim " + kataVim,
 		//os.Getenv("SHELL"),
 		//os.Getenv("SHELL"),
 
@@ -233,19 +238,17 @@ func main() {
 
 	ExpectedOutput := text.NewFromContent(
 			text.NewContent([]text.ContentSegment{
-				text.StyledContent("hello", gowid.MakePaletteRef("red")),
-				text.StringContent(" "),
-				text.StyledContent("world", gowid.MakePaletteRef("green")),
+				text.StyledContent(kataExample, gowid.MakePaletteRef("red")),
 			}))
 
 
 	tips := styled.New(
 		text.NewFromContentExt(
 			text.NewContent([]text.ContentSegment{
-				text.StyledContent("Tips", gowid.MakePaletteRef("banner")),
+				text.StyledContent(kataTips, gowid.MakePaletteRef("banner")),
 			}),
 			text.Options{
-				Align: gowid.HAlignMiddle{},
+				Align: gowid.HAlignLeft{},
 			},
 		),
 		gowid.MakePaletteRef("streak"),
@@ -270,7 +273,7 @@ func main() {
 
 	twid := framed.New(twidgets[0], framed.Options{
 		Frame: framed.UnicodeFrame,
-		Title: "Exercise",
+		Title: "Exercise " + kataNum,
 	})
 
 	pilew = NewResizeablePile([]gowid.IContainerWidget{
