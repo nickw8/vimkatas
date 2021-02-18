@@ -210,9 +210,11 @@ func main() {
 	//foo := os.Env()
 	os.Open("foo")
 	tcommands := []string{
+		//os.Getenv("SHELL"),
+		"vim",
 		os.Getenv("SHELL"),
 		os.Getenv("SHELL"),
-		os.Getenv("SHELL"),
+
 		//"less cell.go",
 		//"vttest",
 		//"emacs -nw -q ./cell.go",
@@ -235,18 +237,19 @@ func main() {
 	twp := holder.New(tw)
 
 	vline := styled.New(fill.New('│'), gowid.MakePaletteRef("line"))
-	hline := styled.New(fill.New('⎯'), gowid.MakePaletteRef("line"))
+	hline := styled.New(fill.New('-'), gowid.MakePaletteRef("line"))
 
 	pilew = NewResizeablePile([]gowid.IContainerWidget{
-		&gowid.ContainerWidget{IWidget: twidgets[1], D: gowid.RenderWithWeight{W: 1}},
+		&gowid.ContainerWidget{IWidget: twidgets[0], D: gowid.RenderWithWeight{W: 3}},
 		&gowid.ContainerWidget{IWidget: hline, D: gowid.RenderWithUnits{U: 1}},
-		&gowid.ContainerWidget{IWidget: twidgets[2], D: gowid.RenderWithWeight{W: 1}},
+		&gowid.ContainerWidget{IWidget: twidgets[2], D: gowid.RenderWithWeight{W: 3}},
 	})
 
 	cols = NewResizeableColumns([]gowid.IContainerWidget{
-		&gowid.ContainerWidget{IWidget: twidgets[0], D: gowid.RenderWithWeight{W: 3}},
+		&gowid.ContainerWidget{IWidget: pilew, D: gowid.RenderWithWeight{W: 3}},
 		&gowid.ContainerWidget{IWidget: vline, D: gowid.RenderWithUnits{U: 1}},
-		&gowid.ContainerWidget{IWidget: pilew, D: gowid.RenderWithWeight{W: 1}},
+		&gowid.ContainerWidget{IWidget: twidgets[1], D: gowid.RenderWithWeight{W: 1}},
+
 	})
 
 	view := framed.New(cols, framed.Options{
