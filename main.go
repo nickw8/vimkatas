@@ -212,8 +212,8 @@ func main() {
 	tcommands := []string{
 		//os.Getenv("SHELL"),
 		"vim",
-		os.Getenv("SHELL"),
-		os.Getenv("SHELL"),
+		//os.Getenv("SHELL"),
+		//os.Getenv("SHELL"),
 
 		//"less cell.go",
 		//"vttest",
@@ -232,7 +232,31 @@ func main() {
 		twidgets = append(twidgets, app)
 	}
 
-	tw := text.New(" Terminal Demo ")
+	ExpectedOutput := styled.New(
+		text.NewFromContentExt(
+			text.NewContent([]text.ContentSegment{
+				text.StyledContent("Expected Output", gowid.MakePaletteRef("banner")),
+			}),
+			text.Options{
+				Align: gowid.HAlignMiddle{},
+			},
+		),
+		gowid.MakePaletteRef("streak"),
+	)
+
+	tips := styled.New(
+		text.NewFromContentExt(
+			text.NewContent([]text.ContentSegment{
+				text.StyledContent("Tips", gowid.MakePaletteRef("banner")),
+			}),
+			text.Options{
+				Align: gowid.HAlignMiddle{},
+			},
+		),
+		gowid.MakePaletteRef("streak"),
+	)
+
+	tw := text.New(" VimKatas ")
 	twi := styled.New(tw, gowid.MakePaletteRef("invred"))
 	twp := holder.New(tw)
 
@@ -242,13 +266,13 @@ func main() {
 	pilew = NewResizeablePile([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{IWidget: twidgets[0], D: gowid.RenderWithWeight{W: 3}},
 		&gowid.ContainerWidget{IWidget: hline, D: gowid.RenderWithUnits{U: 1}},
-		&gowid.ContainerWidget{IWidget: twidgets[2], D: gowid.RenderWithWeight{W: 3}},
+		&gowid.ContainerWidget{IWidget: ExpectedOutput, D: gowid.RenderWithWeight{W: 3}},
 	})
 
 	cols = NewResizeableColumns([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{IWidget: pilew, D: gowid.RenderWithWeight{W: 3}},
 		&gowid.ContainerWidget{IWidget: vline, D: gowid.RenderWithUnits{U: 1}},
-		&gowid.ContainerWidget{IWidget: twidgets[1], D: gowid.RenderWithWeight{W: 1}},
+		&gowid.ContainerWidget{IWidget: tips, D: gowid.RenderWithWeight{W: 1}},
 
 	})
 
