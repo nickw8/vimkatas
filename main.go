@@ -232,17 +232,13 @@ func main() {
 		twidgets = append(twidgets, app)
 	}
 
-	ExpectedOutput := styled.New(
-		text.NewFromContentExt(
+	ExpectedOutput := text.NewFromContent(
 			text.NewContent([]text.ContentSegment{
-				text.StyledContent("Expected Output", gowid.MakePaletteRef("banner")),
-			}),
-			text.Options{
-				Align: gowid.HAlignMiddle{},
-			},
-		),
-		gowid.MakePaletteRef("streak"),
-	)
+				text.StyledContent("hello", gowid.MakePaletteRef("red")),
+				text.StringContent(" "),
+				text.StyledContent("world", gowid.MakePaletteRef("green")),
+			}))
+
 
 	tips := styled.New(
 		text.NewFromContentExt(
