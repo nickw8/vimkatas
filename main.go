@@ -1,22 +1,23 @@
 package main
 
 import (
-	"os"
-	"strings"
-	"syscall"
-	"time"
-	"vimkatas/handlers"
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/examples"
 	"github.com/gcla/gowid/widgets/columns"
+	"github.com/gcla/gowid/widgets/dialog"
 	"github.com/gcla/gowid/widgets/framed"
 	"github.com/gcla/gowid/widgets/holder"
+	"github.com/gcla/gowid/widgets/hpadding"
 	"github.com/gcla/gowid/widgets/pile"
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/terminal"
 	"github.com/gcla/gowid/widgets/text"
 	"github.com/gdamore/tcell"
 	log "github.com/sirupsen/logrus"
+	"strings"
+	"syscall"
+	"time"
+	"vimkatas/handlers"
 )
 
 //======================================================================
@@ -150,7 +151,9 @@ func (w *ResizeablePileWidget) RenderBoxMaker(size gowid.IRenderSize, focus gowi
 var app *gowid.App
 var cols *ResizeableColumnsWidget
 var pilew *ResizeablePileWidget
-var twidgets []*terminal.Widget
+var vimWidget *terminal.Widget
+var yesno *dialog.Widget
+var viewHolder *holder.Widget
 
 //======================================================================
 
@@ -161,16 +164,22 @@ func (h handler) UnhandledInput(app gowid.IApp, ev interface{}) bool {
 
 	if evk, ok := ev.(*tcell.EventKey); ok {
 		switch evk.Key() {
-		case tcell.KeyCtrlC, tcell.KeyEsc:
+		case tcell.KeyEsc:
 			handled = true
-			for _, t := range twidgets {
-				t.Signal(syscall.SIGINT)
-			}
+			vimWidget.Signal(syscall.SIGINT)
+		case tcell.KeyCtrlC:
+			handled = true
+			msg := text.New("Do you want to quit?")
+			yesno = dialog.New(
+				framed.NewSpace(hpadding.New(msg, gowid.HAlignMiddle{}, gowid.RenderFixed{})),
+				dialog.Options{
+					Buttons: dialog.OkCancel,
+				},
+			)
+			yesno.Open(viewHolder, gowid.RenderWithRatio{R: 0.5}, app)
 		case tcell.KeyCtrlBackslash:
 			handled = true
-			for _, t := range twidgets {
-				t.Signal(syscall.SIGQUIT)
-			}
+			vimWidget.Signal(syscall.SIGQUIT)
 		case tcell.KeyRune:
 			handled = true
 			switch evk.Rune() {
@@ -210,31 +219,25 @@ func main() {
 
 	hkDuration := terminal.HotKeyDuration{D: time.Second * 3}
 
-	twidgets = make([]*terminal.Widget, 0)
-	os.Open("foo")
-	tcommands := []string{
-		"vim" + " -R " + kataVim,
-	}
+	tw := text.New(" VimKatas ")
+	twi := styled.New(tw, gowid.MakePaletteRef("invred"))
+	twp := holder.New(tw)
 
-	for _, cmd := range tcommands {
-		app, err := terminal.NewExt(terminal.Options{
-			Command:           strings.Split(cmd, " "),
-			HotKeyPersistence: &hkDuration,
-			Scrollback:        100,
+	vimWidget, err := terminal.NewExt(terminal.Options{
+		Command:           strings.Split("vim" + " -R " + kataVim, " "),
+		HotKeyPersistence: &hkDuration,
+		Scrollback:        100,
 		})
 		if err != nil {
 			panic(err)
-		}
-		twidgets = append(twidgets, app)
 	}
 
-	ExpectedOutput := text.NewFromContent(
+	outputWidget := text.NewFromContent(
 			text.NewContent([]text.ContentSegment{
 				text.StyledContent(kataExample, gowid.MakePaletteRef("red")),
 			}))
 
-
-	tips := styled.New(
+	tipsWidget := styled.New(
 		text.NewFromContentExt(
 			text.NewContent([]text.ContentSegment{
 				text.StyledContent(kataTips, gowid.MakePaletteRef("banner")),
@@ -246,33 +249,29 @@ func main() {
 		gowid.MakePaletteRef("streak"),
 	)
 
-	tw := text.New(" VimKatas ")
-	twi := styled.New(tw, gowid.MakePaletteRef("invred"))
-	twp := holder.New(tw)
-
-	tout := framed.New(ExpectedOutput, framed.Options{
+	outFrame := framed.New(outputWidget, framed.Options{
 		Frame: framed.UnicodeFrame,
 		Title: "Expected Output",
 	})
 
-	ttips := framed.New(tips, framed.Options{
+	tipsFrame := framed.New(tipsWidget, framed.Options{
 		Frame: framed.UnicodeFrame,
 		Title: "Tips",
 	})
 
-	twid := framed.New(twidgets[0], framed.Options{
+	vimFrame := framed.New(vimWidget, framed.Options{
 		Frame: framed.UnicodeFrame,
 		Title: "Exercise " + kataNum,
 	})
 
 	pilew = NewResizeablePile([]gowid.IContainerWidget{
-		&gowid.ContainerWidget{IWidget: twid, D: gowid.RenderWithWeight{W: 3}},
-		&gowid.ContainerWidget{IWidget: tout, D: gowid.RenderWithWeight{W: 3}},
+		&gowid.ContainerWidget{IWidget: vimFrame, D: gowid.RenderWithWeight{W: 3}},
+		&gowid.ContainerWidget{IWidget: outFrame, D: gowid.RenderWithWeight{W: 3}},
 	})
 
 	cols = NewResizeableColumns([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{IWidget: pilew, D: gowid.RenderWithWeight{W: 3}},
-		&gowid.ContainerWidget{IWidget: ttips, D: gowid.RenderWithWeight{W: 1}},
+		&gowid.ContainerWidget{IWidget: tipsFrame, D: gowid.RenderWithWeight{W: 1}},
 
 	})
 
@@ -281,31 +280,31 @@ func main() {
 		TitleWidget: twp,
 	})
 
-	for _, t := range twidgets {
-		t.OnProcessExited(gowid.WidgetCallback{Name: "cb",
-			WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
-				app.Quit()
-			},
-		})
-		t.OnBell(gowid.WidgetCallback{Name: "cb",
-			WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
-				twp.SetSubWidget(twi, app)
-				timer := time.NewTimer(time.Millisecond * 800)
-				go func() {
-					<-timer.C
-					app.Run(gowid.RunFunction(func(app gowid.IApp) {
-						twp.SetSubWidget(tw, app)
-					}))
-				}()
-			},
-		})
-		t.OnSetTitle(gowid.WidgetCallback{Name: "cb",
-			WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
-				w2 := w.(*terminal.Widget)
-				tw.SetText(" "+w2.GetTitle()+" ", app)
-			},
-		})
-	}
+	vimWidget.OnProcessExited(gowid.WidgetCallback{Name: "cb",
+		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
+			app.Quit()
+		},
+	})
+
+	vimWidget.OnBell(gowid.WidgetCallback{Name: "cb",
+		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
+			twp.SetSubWidget(twi, app)
+			timer := time.NewTimer(time.Millisecond * 800)
+			go func() {
+				<-timer.C
+				app.Run(gowid.RunFunction(func(app gowid.IApp) {
+					twp.SetSubWidget(tw, app)
+				}))
+			}()
+		},
+	})
+
+	vimWidget.OnSetTitle(gowid.WidgetCallback{Name: "cb",
+		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
+			w2 := w.(*terminal.Widget)
+			tw.SetText(" "+w2.GetTitle()+" ", app)
+		},
+	})
 
 	app, err = gowid.NewApp(gowid.AppArgs{
 		View:    view,
