@@ -232,6 +232,32 @@ func main() {
 			panic(err)
 	}
 
+	vimWidget.OnProcessExited(gowid.WidgetCallback{Name: "cb",
+		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
+			app.Quit()
+		},
+	})
+
+	vimWidget.OnBell(gowid.WidgetCallback{Name: "cb",
+		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
+			twp.SetSubWidget(twi, app)
+			timer := time.NewTimer(time.Millisecond * 800)
+			go func() {
+				<-timer.C
+				app.Run(gowid.RunFunction(func(app gowid.IApp) {
+					twp.SetSubWidget(tw, app)
+				}))
+			}()
+		},
+	})
+
+	vimWidget.OnSetTitle(gowid.WidgetCallback{Name: "cb",
+		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
+			w2 := w.(*terminal.Widget)
+			tw.SetText(" "+w2.GetTitle()+" ", app)
+		},
+	})
+
 	outputWidget := text.NewFromContent(
 			text.NewContent([]text.ContentSegment{
 				text.StyledContent(kataExample, gowid.MakePaletteRef("red")),
@@ -278,32 +304,6 @@ func main() {
 	view := framed.New(cols, framed.Options{
 		Frame:       framed.UnicodeFrame,
 		TitleWidget: twp,
-	})
-
-	vimWidget.OnProcessExited(gowid.WidgetCallback{Name: "cb",
-		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
-			app.Quit()
-		},
-	})
-
-	vimWidget.OnBell(gowid.WidgetCallback{Name: "cb",
-		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
-			twp.SetSubWidget(twi, app)
-			timer := time.NewTimer(time.Millisecond * 800)
-			go func() {
-				<-timer.C
-				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					twp.SetSubWidget(tw, app)
-				}))
-			}()
-		},
-	})
-
-	vimWidget.OnSetTitle(gowid.WidgetCallback{Name: "cb",
-		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
-			w2 := w.(*terminal.Widget)
-			tw.SetText(" "+w2.GetTitle()+" ", app)
-		},
 	})
 
 	app, err = gowid.NewApp(gowid.AppArgs{
