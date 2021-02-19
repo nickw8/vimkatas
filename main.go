@@ -3,9 +3,12 @@ package main
 import (
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/examples"
+	"github.com/gcla/gowid/widgets/button"
+	"github.com/gcla/gowid/widgets/clicktracker"
 	"github.com/gcla/gowid/widgets/columns"
 	"github.com/gcla/gowid/widgets/framed"
 	"github.com/gcla/gowid/widgets/holder"
+	"github.com/gcla/gowid/widgets/hpadding"
 	"github.com/gcla/gowid/widgets/pile"
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/terminal"
@@ -21,8 +24,10 @@ import (
 
 var app *gowid.App
 var cols *ResizeableColumnsWidget
-var pilew *ResizeablePileWidget
+var rows1 *ResizeablePileWidget
+var rows2 *ResizeablePileWidget
 var vimWidget *terminal.Widget
+var controller exerciseController
 //var yesno *dialog.Widget
 //var viewHolder *holder.Widget
 
@@ -168,6 +173,9 @@ func (h handler) UnhandledInput(app gowid.IApp, ev interface{}) bool {
 		case tcell.KeyCtrlBackslash, tcell.KeyCtrlC:
 			handled = true
 			vimWidget.Signal(syscall.SIGQUIT)
+		case tcell.KeyTAB:
+			handled = true
+			nextExercise(controller)
 		case tcell.KeyRune:
 			handled = true
 			switch evk.Rune() {
@@ -176,9 +184,9 @@ func (h handler) UnhandledInput(app gowid.IApp, ev interface{}) bool {
 			case '<':
 				cols.offset -= 1
 			case '+':
-				pilew.offset += 1
+				rows1.offset += 1
 			case '-':
-				pilew.offset -= 1
+				rows1.offset -= 1
 			default:
 				handled = false
 			}
@@ -229,7 +237,40 @@ func makeNewTipsWidget(content string) *styled.Widget {
 	return t
 }
 //============ Menu Widget ================================================
+func makeNewMenuWidget() *ResizeableColumnsWidget {
+	p := gowid.RenderFixed{}
+	nextText := text.New("Next")
+	nextButton := button.New(nextText)
 
+	quitText := text.New("Quit")
+	quitButton := button.New(quitText)
+
+	nextButtonStyled := styled.NewExt(nextButton,
+		gowid.MakePaletteRef("button normal"),
+		gowid.MakePaletteRef("button select"))
+	quitButtonStyled := styled.NewExt(quitButton,
+		gowid.MakePaletteRef("button normal"),
+		gowid.MakePaletteRef("button select"))
+
+	nextButtonTracker := clicktracker.New(nextButtonStyled)
+	quitButtonTracker := clicktracker.New(quitButtonStyled)
+
+	nextButton.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
+		_ = nextExercise(controller)
+		//app.Redraw()
+	}})
+
+	quitButton.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
+		app.Quit()
+	}})
+
+	cols := NewResizeableColumns([]gowid.IContainerWidget{
+		&gowid.ContainerWidget{hpadding.New(nextButtonTracker, gowid.HAlignMiddle{}, p), gowid.RenderWithWeight{1}},
+		&gowid.ContainerWidget{hpadding.New(quitButtonTracker, gowid.HAlignMiddle{}, p), gowid.RenderWithWeight{1}},
+	})
+
+	return cols
+}
 //============ Exercise View ================================================
 type exerciseView struct {
 	view *framed.Widget
@@ -254,6 +295,7 @@ func makeNewExerciseView() (*exerciseView, error){
 	vimWidget := makeNewVimWidget(kataVim)
 	outputWidget := makeNewOutputWidget(kataExample)
 	tipsWidget := makeNewTipsWidget(kataTips)
+	menuWidget := makeNewMenuWidget()
 
 	outFrame := framed.New(outputWidget, framed.Options{
 		Frame: framed.UnicodeFrame,
@@ -270,14 +312,24 @@ func makeNewExerciseView() (*exerciseView, error){
 		Title: "Exercise " + kataNum,
 	})
 
-	pilew = NewResizeablePile([]gowid.IContainerWidget{
+	menuFrame := framed.New(menuWidget, framed.Options{
+		Frame: framed.UnicodeFrame,
+		Title: "Menu",
+	})
+
+	rows1 = NewResizeablePile([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{IWidget: vimFrame, D: gowid.RenderWithWeight{W: 3}},
 		&gowid.ContainerWidget{IWidget: outFrame, D: gowid.RenderWithWeight{W: 3}},
 	})
 
+	rows2 = NewResizeablePile([]gowid.IContainerWidget{
+		&gowid.ContainerWidget{IWidget: tipsFrame, D: gowid.RenderWithWeight{W: 5}},
+		&gowid.ContainerWidget{IWidget: menuFrame, D: gowid.RenderWithWeight{W: 1}},
+	})
+
 	cols = NewResizeableColumns([]gowid.IContainerWidget{
-		&gowid.ContainerWidget{IWidget: pilew, D: gowid.RenderWithWeight{W: 3}},
-		&gowid.ContainerWidget{IWidget: tipsFrame, D: gowid.RenderWithWeight{W: 1}},
+		&gowid.ContainerWidget{IWidget: rows1, D: gowid.RenderWithWeight{W: 3}},
+		&gowid.ContainerWidget{IWidget: rows2, D: gowid.RenderWithWeight{W: 1}},
 
 	})
 
@@ -336,6 +388,13 @@ func makeNewExerciseController() (*exerciseController,error) {
 	})
 
 	return res, err
+}
+
+func nextExercise(c exerciseController) error {
+	view, err := makeNewExerciseView()
+	c.view = view
+	app.Redraw()
+	return err
 }
 //============ main ======================================================
 
