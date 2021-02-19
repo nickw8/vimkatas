@@ -27,7 +27,8 @@ var cols *ResizeableColumnsWidget
 var rows1 *ResizeablePileWidget
 var rows2 *ResizeablePileWidget
 var vimWidget *terminal.Widget
-var controller exerciseController
+//var controller *exerciseController
+//var view *exerciseView
 //var yesno *dialog.Widget
 //var viewHolder *holder.Widget
 
@@ -173,9 +174,9 @@ func (h handler) UnhandledInput(app gowid.IApp, ev interface{}) bool {
 		case tcell.KeyCtrlBackslash, tcell.KeyCtrlC:
 			handled = true
 			vimWidget.Signal(syscall.SIGQUIT)
-		case tcell.KeyTAB:
-			handled = true
-			nextExercise(controller)
+		//case tcell.KeyTAB:
+		//	handled = true
+		//	nextExercise()
 		case tcell.KeyRune:
 			handled = true
 			switch evk.Rune() {
@@ -237,7 +238,13 @@ func makeNewTipsWidget(content string) *styled.Widget {
 	return t
 }
 //============ Menu Widget ================================================
-func makeNewMenuWidget() *ResizeableColumnsWidget {
+type menuWidget struct {
+	cols *ResizeableColumnsWidget
+	nextBt *button.Widget
+	exitBt *button.Widget
+
+}
+func makeNewMenuWidget() *menuWidget {
 	p := gowid.RenderFixed{}
 	nextText := text.New("Next")
 	nextButton := button.New(nextText)
@@ -255,21 +262,17 @@ func makeNewMenuWidget() *ResizeableColumnsWidget {
 	nextButtonTracker := clicktracker.New(nextButtonStyled)
 	quitButtonTracker := clicktracker.New(quitButtonStyled)
 
-	nextButton.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
-		_ = nextExercise(controller)
-		//app.Redraw()
-	}})
-
-	quitButton.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
-		app.Quit()
-	}})
-
 	cols := NewResizeableColumns([]gowid.IContainerWidget{
 		&gowid.ContainerWidget{hpadding.New(nextButtonTracker, gowid.HAlignMiddle{}, p), gowid.RenderWithWeight{1}},
 		&gowid.ContainerWidget{hpadding.New(quitButtonTracker, gowid.HAlignMiddle{}, p), gowid.RenderWithWeight{1}},
 	})
 
-	return cols
+	res := &menuWidget{
+		cols:   cols,
+		nextBt: nextButton,
+		exitBt: quitButton,
+	}
+	return res
 }
 //============ Exercise View ================================================
 type exerciseView struct {
@@ -278,9 +281,11 @@ type exerciseView struct {
 	titleInv *styled.Widget
 	holder *holder.Widget
 	vimWidget *terminal.Widget
+	menuWidget *menuWidget
 }
 
 func makeNewExerciseView() (*exerciseView, error){
+
 	getKata, err := handlers.SelectKata()
 	kataTips := string(getKata.Tips)
 	kataNum := getKata.Kata
@@ -312,7 +317,7 @@ func makeNewExerciseView() (*exerciseView, error){
 		Title: "Exercise " + kataNum,
 	})
 
-	menuFrame := framed.New(menuWidget, framed.Options{
+	menuFrame := framed.New(menuWidget.cols, framed.Options{
 		Frame: framed.UnicodeFrame,
 		Title: "Menu",
 	})
@@ -338,12 +343,14 @@ func makeNewExerciseView() (*exerciseView, error){
 		TitleWidget: twp,
 	})
 
+
 	res := &exerciseView{
 		view: view,
 		title: tw,
 		titleInv: twi,
 		holder: twp,
 		vimWidget: vimWidget,
+		menuWidget: menuWidget,
 	}
 
 	return res, err
@@ -361,6 +368,7 @@ func makeNewExerciseController() (*exerciseController,error) {
 	view, err := makeNewExerciseView()
 	res.view = view
 
+	// === Setting vim controls ===
 	res.view.vimWidget.OnProcessExited(gowid.WidgetCallback{Name: "cb",
 		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
 			app.Quit()
@@ -387,15 +395,20 @@ func makeNewExerciseController() (*exerciseController,error) {
 		},
 	})
 
+	// === setting button controls ===
+	res.view.menuWidget.nextBt.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
+		view, _ := makeNewExerciseView()
+		res.view = view
+		app.Redraw()
+	}})
+
+	res.view.menuWidget.exitBt.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
+		app.Quit()
+	}})
+
 	return res, err
 }
 
-func nextExercise(c exerciseController) error {
-	view, err := makeNewExerciseView()
-	c.view = view
-	app.Redraw()
-	return err
-}
 //============ main ======================================================
 
 func main() {
