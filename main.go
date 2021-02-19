@@ -4,10 +4,8 @@ import (
 	"github.com/gcla/gowid"
 	"github.com/gcla/gowid/examples"
 	"github.com/gcla/gowid/widgets/columns"
-	"github.com/gcla/gowid/widgets/dialog"
 	"github.com/gcla/gowid/widgets/framed"
 	"github.com/gcla/gowid/widgets/holder"
-	"github.com/gcla/gowid/widgets/hpadding"
 	"github.com/gcla/gowid/widgets/pile"
 	"github.com/gcla/gowid/widgets/styled"
 	"github.com/gcla/gowid/widgets/terminal"
@@ -19,8 +17,16 @@ import (
 	"time"
 	"vimkatas/handlers"
 )
+//============ var ==========================================================
 
-//======================================================================
+var app *gowid.App
+var cols *ResizeableColumnsWidget
+var pilew *ResizeablePileWidget
+var vimWidget *terminal.Widget
+//var yesno *dialog.Widget
+//var viewHolder *holder.Widget
+
+//============ Resizable Columns Widget ==========================================================
 
 type ResizeableColumnsWidget struct {
 	*columns.Widget
@@ -62,7 +68,7 @@ func (w *ResizeableColumnsWidget) SubWidgetSize(size gowid.IRenderSize, newX int
 	return w.Widget.SubWidgetSize(size, newX, sub, dim)
 }
 
-//======================================================================
+//============ Resizable Pillar Widget ==========================================================
 
 type ResizeablePileWidget struct {
 	*pile.Widget
@@ -146,16 +152,8 @@ func (w *ResizeablePileWidget) RenderBoxMaker(size gowid.IRenderSize, focus gowi
 	return pile.RenderBoxMaker(w, size, focus, focusIdx, app, x)
 }
 
-//======================================================================
 
-var app *gowid.App
-var cols *ResizeableColumnsWidget
-var pilew *ResizeablePileWidget
-var vimWidget *terminal.Widget
-var yesno *dialog.Widget
-var viewHolder *holder.Widget
-
-//======================================================================
+//============ Input Handler ==========================================================
 
 type handler struct{}
 
@@ -167,17 +165,7 @@ func (h handler) UnhandledInput(app gowid.IApp, ev interface{}) bool {
 		case tcell.KeyEsc:
 			handled = true
 			vimWidget.Signal(syscall.SIGINT)
-		case tcell.KeyCtrlC:
-			handled = true
-			msg := text.New("Do you want to quit?")
-			yesno = dialog.New(
-				framed.NewSpace(hpadding.New(msg, gowid.HAlignMiddle{}, gowid.RenderFixed{})),
-				dialog.Options{
-					Buttons: dialog.OkCancel,
-				},
-			)
-			yesno.Open(viewHolder, gowid.RenderWithRatio{R: 0.5}, app)
-		case tcell.KeyCtrlBackslash:
+		case tcell.KeyCtrlBackslash, tcell.KeyCtrlC:
 			handled = true
 			vimWidget.Signal(syscall.SIGQUIT)
 		case tcell.KeyRune:
@@ -199,74 +187,38 @@ func (h handler) UnhandledInput(app gowid.IApp, ev interface{}) bool {
 	return handled
 }
 
-//======================================================================
+//============ Vim Widget ================================================
 
-func main() {
-	var err error
-	getKata, err := handlers.SelectKata()
-	kataTips := string(getKata.Tips)
-	kataNum := getKata.Kata
-	kataExample := string(getKata.Example)
-	kataVim := getKata.VimText
-
-	f := examples.RedirectLogger("terminal.log")
-	defer f.Close()
-
-	palette := gowid.Palette{
-		"invred": gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorRed),
-		"line":   gowid.MakeStyledPaletteEntry(gowid.NewUrwidColor("black"), gowid.NewUrwidColor("light gray"), gowid.StyleBold),
-	}
+func makeNewVimWidget(fp string) *terminal.Widget {
 
 	hkDuration := terminal.HotKeyDuration{D: time.Second * 3}
-
-	tw := text.New(" VimKatas ")
-	twi := styled.New(tw, gowid.MakePaletteRef("invred"))
-	twp := holder.New(tw)
-
-	vimWidget, err := terminal.NewExt(terminal.Options{
-		Command:           strings.Split("vim" + " -R " + kataVim, " "),
+	v, err := terminal.NewExt(terminal.Options{
+		Command:           strings.Split("vim" + " -R " + fp, " "),
 		HotKeyPersistence: &hkDuration,
 		Scrollback:        100,
-		})
-		if err != nil {
-			panic(err)
+	})
+	if err != nil {
+		panic(err)
 	}
+	return v
+}
 
-	vimWidget.OnProcessExited(gowid.WidgetCallback{Name: "cb",
-		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
-			app.Quit()
-		},
-	})
+//============ Output Widget ================================================
 
-	vimWidget.OnBell(gowid.WidgetCallback{Name: "cb",
-		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
-			twp.SetSubWidget(twi, app)
-			timer := time.NewTimer(time.Millisecond * 800)
-			go func() {
-				<-timer.C
-				app.Run(gowid.RunFunction(func(app gowid.IApp) {
-					twp.SetSubWidget(tw, app)
-				}))
-			}()
-		},
-	})
+func makeNewOutputWidget(content string) *text.Widget {
+	o := text.NewFromContent(
+		text.NewContent([]text.ContentSegment{
+			text.StyledContent(content, gowid.MakePaletteRef("red")),
+		}))
+	return o
+}
+//============ Tips Widget ================================================
 
-	vimWidget.OnSetTitle(gowid.WidgetCallback{Name: "cb",
-		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
-			w2 := w.(*terminal.Widget)
-			tw.SetText(" "+w2.GetTitle()+" ", app)
-		},
-	})
-
-	outputWidget := text.NewFromContent(
-			text.NewContent([]text.ContentSegment{
-				text.StyledContent(kataExample, gowid.MakePaletteRef("red")),
-			}))
-
-	tipsWidget := styled.New(
+func makeNewTipsWidget(content string) *styled.Widget {
+	t := styled.New(
 		text.NewFromContentExt(
 			text.NewContent([]text.ContentSegment{
-				text.StyledContent(kataTips, gowid.MakePaletteRef("banner")),
+				text.StyledContent(content, gowid.MakePaletteRef("banner")),
 			}),
 			text.Options{
 				Align: gowid.HAlignLeft{},
@@ -274,6 +226,34 @@ func main() {
 		),
 		gowid.MakePaletteRef("streak"),
 	)
+	return t
+}
+//============ Menu Widget ================================================
+
+//============ Exercise View ================================================
+type exerciseView struct {
+	view *framed.Widget
+	title *text.Widget
+	titleInv *styled.Widget
+	holder *holder.Widget
+	vimWidget *terminal.Widget
+}
+
+func makeNewExerciseView() (*exerciseView, error){
+	getKata, err := handlers.SelectKata()
+	kataTips := string(getKata.Tips)
+	kataNum := getKata.Kata
+	kataExample := string(getKata.Example)
+	kataVim := getKata.VimText
+
+
+	tw := text.New(" VimKatas ")
+	twi := styled.New(tw, gowid.MakePaletteRef("invred"))
+	twp := holder.New(tw)
+
+	vimWidget := makeNewVimWidget(kataVim)
+	outputWidget := makeNewOutputWidget(kataExample)
+	tipsWidget := makeNewTipsWidget(kataTips)
 
 	outFrame := framed.New(outputWidget, framed.Options{
 		Frame: framed.UnicodeFrame,
@@ -306,11 +286,79 @@ func main() {
 		TitleWidget: twp,
 	})
 
+	res := &exerciseView{
+		view: view,
+		title: tw,
+		titleInv: twi,
+		holder: twp,
+		vimWidget: vimWidget,
+	}
+
+	return res, err
+}
+//============ Exercise Controller ================================================
+
+type exerciseController struct {
+	view *exerciseView
+}
+
+func makeNewExerciseController() (*exerciseController,error) {
+
+
+	res := &exerciseController{nil}
+	view, err := makeNewExerciseView()
+	res.view = view
+
+	res.view.vimWidget.OnProcessExited(gowid.WidgetCallback{Name: "cb",
+		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
+			app.Quit()
+		},
+	})
+
+	res.view.vimWidget.OnBell(gowid.WidgetCallback{Name: "cb",
+		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
+			res.view.holder.SetSubWidget(res.view.titleInv, app)
+			timer := time.NewTimer(time.Millisecond * 800)
+			go func() {
+				<-timer.C
+				app.Run(gowid.RunFunction(func(app gowid.IApp) {
+					res.view.holder.SetSubWidget(res.view.title, app)
+				}))
+			}()
+		},
+	})
+
+	res.view.vimWidget.OnSetTitle(gowid.WidgetCallback{Name: "cb",
+		WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
+			w2 := w.(*terminal.Widget)
+			res.view.title.SetText(" "+w2.GetTitle()+" ", app)
+		},
+	})
+
+	return res, err
+}
+//============ main ======================================================
+
+func main() {
+	var err error
+
+	f := examples.RedirectLogger("terminal.log")
+	defer f.Close()
+
+
+	palette := gowid.Palette{
+		"invred": gowid.MakePaletteEntry(gowid.ColorBlack, gowid.ColorRed),
+		"line":   gowid.MakeStyledPaletteEntry(gowid.NewUrwidColor("black"), gowid.NewUrwidColor("light gray"), gowid.StyleBold),
+	}
+
+	controller, err := makeNewExerciseController()
+
 	app, err = gowid.NewApp(gowid.AppArgs{
-		View:    view,
+		View:    controller.view.view,
 		Palette: &palette,
 		Log:     log.StandardLogger(),
 	})
+
 	examples.ExitOnErr(err)
 
 	app.MainLoop(handler{})
