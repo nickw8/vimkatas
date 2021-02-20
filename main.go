@@ -27,6 +27,8 @@ var cols *ResizeableColumnsWidget
 var rows1 *ResizeablePileWidget
 var rows2 *ResizeablePileWidget
 var vimWidget *terminal.Widget
+var viewHolder *holder.Widget
+
 //var controller *exerciseController
 //var view *exerciseView
 //var yesno *dialog.Widget
@@ -276,11 +278,12 @@ func makeNewMenuWidget() *menuWidget {
 }
 //============ Exercise View ================================================
 type exerciseView struct {
-	view *framed.Widget
-	title *text.Widget
-	titleInv *styled.Widget
-	holder *holder.Widget
-	vimWidget *terminal.Widget
+	viewHolder *holder.Widget
+	view       *framed.Widget
+	title      *text.Widget
+	titleInv   *styled.Widget
+	holder     *holder.Widget
+	vimWidget  *terminal.Widget
 	menuWidget *menuWidget
 }
 
@@ -398,8 +401,7 @@ func makeNewExerciseController() (*exerciseController,error) {
 	// === setting button controls ===
 	res.view.menuWidget.nextBt.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
 		view, _ := makeNewExerciseView()
-		res.view = view
-		app.Redraw()
+		viewHolder.SetSubWidget(view.view, app)
 	}})
 
 	res.view.menuWidget.exitBt.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
@@ -425,8 +427,10 @@ func main() {
 
 	controller, err := makeNewExerciseController()
 
+	viewHolder = holder.New(controller.view.view)
+
 	app, err = gowid.NewApp(gowid.AppArgs{
-		View:    controller.view.view,
+		View:    viewHolder,
 		Palette: &palette,
 		Log:     log.StandardLogger(),
 	})
