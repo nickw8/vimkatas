@@ -29,11 +29,6 @@ var rows2 *ResizeablePileWidget
 var vimWidget *terminal.Widget
 var viewHolder *holder.Widget
 
-//var controller *exerciseController
-//var view *exerciseView
-//var yesno *dialog.Widget
-//var viewHolder *holder.Widget
-
 //============ Resizable Columns Widget ==========================================================
 
 type ResizeableColumnsWidget struct {
@@ -346,6 +341,14 @@ func makeNewExerciseView() (*exerciseView, error){
 		TitleWidget: twp,
 	})
 
+	menuWidget.nextBt.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
+		view, _ := makeNewExerciseView()
+		viewHolder.SetSubWidget(view.view, app)
+	}})
+
+	menuWidget.exitBt.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
+		app.Quit()
+	}})
 
 	res := &exerciseView{
 		view: view,
@@ -397,16 +400,6 @@ func makeNewExerciseController() (*exerciseController,error) {
 			res.view.title.SetText(" "+w2.GetTitle()+" ", app)
 		},
 	})
-
-	// === setting button controls ===
-	res.view.menuWidget.nextBt.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
-		view, _ := makeNewExerciseView()
-		viewHolder.SetSubWidget(view.view, app)
-	}})
-
-	res.view.menuWidget.exitBt.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
-		app.Quit()
-	}})
 
 	return res, err
 }
