@@ -29,11 +29,6 @@ var rows2 *ResizeablePileWidget
 var vimWidget *terminal.Widget
 var viewHolder *holder.Widget
 
-//var controller *exerciseController
-//var view *exerciseView
-//var yesno *dialog.Widget
-//var viewHolder *holder.Widget
-
 //============ Resizable Columns Widget ==========================================================
 
 type ResizeableColumnsWidget struct {
@@ -165,7 +160,7 @@ func (w *ResizeablePileWidget) RenderBoxMaker(size gowid.IRenderSize, focus gowi
 
 type handler struct{}
 
-func (h handler) UnhandledInput(app gowid.IApp, ev interface{}) bool {
+func (h handler) UnhandledInput(_ gowid.IApp, ev interface{}) bool {
 	handled := false
 
 	if evk, ok := ev.(*tcell.EventKey); ok {
@@ -265,8 +260,8 @@ func makeNewMenuWidget() *menuWidget {
 	quitButtonTracker := clicktracker.New(quitButtonStyled)
 
 	cols := NewResizeableColumns([]gowid.IContainerWidget{
-		&gowid.ContainerWidget{hpadding.New(nextButtonTracker, gowid.HAlignMiddle{}, p), gowid.RenderWithWeight{1}},
-		&gowid.ContainerWidget{hpadding.New(quitButtonTracker, gowid.HAlignMiddle{}, p), gowid.RenderWithWeight{1}},
+		&gowid.ContainerWidget{IWidget: hpadding.New(nextButtonTracker, gowid.HAlignMiddle{}, p), D: gowid.RenderWithWeight{W: 1}},
+		&gowid.ContainerWidget{IWidget: hpadding.New(quitButtonTracker, gowid.HAlignMiddle{}, p), D: gowid.RenderWithWeight{W: 1}},
 	})
 
 	res := &menuWidget{
@@ -346,6 +341,14 @@ func makeNewExerciseView() (*exerciseView, error){
 		TitleWidget: twp,
 	})
 
+	menuWidget.nextBt.OnClick(gowid.WidgetCallback{Name: "cb", WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
+		view, _ := makeNewExerciseView()
+		viewHolder.SetSubWidget(view.view, app)
+	}})
+
+	menuWidget.exitBt.OnClick(gowid.WidgetCallback{Name: "cb", WidgetChangedFunction: func(app gowid.IApp, w gowid.IWidget) {
+		app.Quit()
+	}})
 
 	res := &exerciseView{
 		view: view,
@@ -365,7 +368,6 @@ type exerciseController struct {
 }
 
 func makeNewExerciseController() (*exerciseController,error) {
-
 
 	res := &exerciseController{nil}
 	view, err := makeNewExerciseView()
@@ -397,16 +399,6 @@ func makeNewExerciseController() (*exerciseController,error) {
 			res.view.title.SetText(" "+w2.GetTitle()+" ", app)
 		},
 	})
-
-	// === setting button controls ===
-	res.view.menuWidget.nextBt.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
-		view, _ := makeNewExerciseView()
-		viewHolder.SetSubWidget(view.view, app)
-	}})
-
-	res.view.menuWidget.exitBt.OnClick(gowid.WidgetCallback{"cb", func(app gowid.IApp, w gowid.IWidget) {
-		app.Quit()
-	}})
 
 	return res, err
 }
